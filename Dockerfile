@@ -31,6 +31,8 @@ RUN pnpm install --frozen-lockfile
 COPY . .
 
 # 7. Build backend
+# Disable source maps to save memory/space
+ENV GENERATE_SOURCEMAP=false
 RUN OPENCLAW_A2UI_SKIP_MISSING=1 pnpm build
 
 # 8. Build UI
@@ -43,8 +45,8 @@ ENV NODE_ENV=production
 # 9. Run as non-root user
 USER node
 
-# 10. CRITICAL FIXES:
-# - max-old-space-size=384: Prevents crashing on Render Free Tier (512MB limit)
-# - allow-unconfigured: Prevents crashing because /tmp config is missing
-# - gateway --port $PORT: Starts the server so Render health checks pass
-CMD node --max-old-space-size=384 dist/index.js gateway --port $PORT --allow-unconfigured
+# 10. CRITICAL MEMORY FIX
+# We are increasing the limit to 460MB.
+# This is risky on a 512MB instance (Free Tier), but necessary because 384MB was insufficient.
+# If this crashes with "Exit Code 137", the app is simply too big for the Free Tier.
+CMD node --max-old-space-size=460 --optimize_for_size --gc_interval=100 dist/index.js gateway --port $PORT --allow-unconfigured
