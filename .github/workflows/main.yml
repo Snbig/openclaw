@@ -1,30 +1,33 @@
-name: Sync with Hugging Face Hub
-
-on:
-  push:
-    branches:
-      - main
-  workflow_dispatch:
-
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      # 1. Checkout the repository code
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          lfs: true
+          lfs: true # Ensures LFS files are downloaded so they can be pushed
 
-      # 2. Install dependencies and run the sync script directly
       - name: Sync with Hugging Face
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
+          # 1. Install dependencies just for the repo creation check
           pip install huggingface_hub
+
+          # 2. Ensure the Space exists (using Python API is fine for this small task)
           python -c "import os; from huggingface_hub import HfApi; \
           api = HfApi(token=os.environ['HF_TOKEN']); \
           repo_id = 'jacksparrow2/Bot'; \
-          api.create_repo(repo_id=repo_id, repo_type='space', space_sdk='gradio', exist_ok=True, private=False); \
-          api.upload_folder(folder_path='.', repo_id=repo_id, repo_type='space', ignore_patterns=['.git', '.github', '.gitignore'])"
+          api.create_repo(repo_id=repo_id, repo_type='space', space_sdk='gradio', exist_ok=True, private=False)"
+
+          # 3. Use GIT to push the files (Fixes the Timeout Issue)
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git config --global user.name "GitHub Actions"
+          
+          # Add the target space as a remote
+          # Note: For Spaces, the URL format is https://huggingface.co/spaces/USERNAME/REPO
+          git remote add space https://oauth2:$HF_TOKEN@huggingface.co/spaces/jacksparrow2/Bot
+          
+          # Push to the main branch of the space (force ensures it mirrors GitHub exactly)
+          git push --force space main
