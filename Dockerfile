@@ -1,13 +1,15 @@
 FROM node:22-bookworm
 
-# Install Bun (required for build scripts)
+# 1. Install Bun (required for internal build scripts)
 RUN curl -fsSL https://bun.sh/install | bash
 ENV PATH="/root/.bun/bin:${PATH}"
 
+# 2. Enable pnpm
 RUN corepack enable
 
 WORKDIR /app
 
+# 3. Install optional system packages (if defined in build args)
 ARG OPENCLAW_DOCKER_APT_PACKAGES=""
 RUN if [ -n "$OPENCLAW_DOCKER_APT_PACKAGES" ]; then \
       apt-get update && \
@@ -16,32 +18,33 @@ RUN if [ -n "$OPENCLAW_DOCKER_APT_PACKAGES" ]; then \
       rm -rf /var/lib/apt/lists/* /var/cache/apt/archives/*; \
     fi
 
+# 4. Copy dependency files first (for better Docker caching)
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
 COPY ui/package.json ./ui/package.json
 COPY patches ./patches
 COPY scripts ./scripts
 
+# 5. Install dependencies
 RUN pnpm install --frozen-lockfile
 
+# 6. Copy source code
 COPY . .
+
+# 7. Build the backend
 RUN OPENCLAW_A2UI_SKIP_MISSING=1 pnpm build
-# Force pnpm for UI build
+
+# 8. Build the UI
+# We force pnpm here to avoid potential architecture issues with Bun on some cloud builds
 ENV OPENCLAW_PREFER_PNPM=1
 RUN pnpm ui:install
 RUN pnpm ui:build
 
 ENV NODE_ENV=production
 
-# --- FIX 1: DATA PERMISSIONS ---
-# Your render.yaml sets OPENCLAW_STATE_DIR to /data/.openclaw.
-# Since we are switching to USER node, we must create this directory 
-# and give the 'node' user permission to write to it.
-RUN mkdir -p /data && chown -R node:node /data
-
-# Security hardening: Run as non-root user
+# 9. Security: Run as non-root user
+# Since you are using /tmp in your Render Env Vars, the 'node' user can write there automatically.
 USER node
 
-# --- FIX 2: START THE GATEWAY ---
-# Use shell form (no brackets) so $PORT is expanded correctly.
-# This runs the specific 'gateway' command instead of just the help menu.
+# 10. CRITICAL FIX: Start the Gateway
+# This uses shell expansion so the $PORT variable from Render (8080) is read correctly.
 CMD node dist/index.js gateway --port $PORT
