@@ -4,17 +4,27 @@ on:
   push:
     branches:
       - main
-  workflow_dispatch:  # This allows the workflow to be triggered manually
+  workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-    - name: Sync with Hugging Face
-      uses: nateraw/huggingface-sync-action@v0.0.5
-      with:
-        github_repo_id: Snbig/openclaw
-        huggingface_repo_id: jacksparrow2/Bot
-        repo_type: space
-        space_sdk: gradio
-        hf_token: ${{ secrets.HF_TOKEN }}
+      # 1. Checkout the repository code
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          lfs: true
+
+      # 2. Install dependencies and run the sync script directly
+      - name: Sync with Hugging Face
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          pip install huggingface_hub
+          python -c "import os; from huggingface_hub import HfApi; \
+          api = HfApi(token=os.environ['HF_TOKEN']); \
+          repo_id = 'jacksparrow2/Bot'; \
+          api.create_repo(repo_id=repo_id, repo_type='space', space_sdk='gradio', exist_ok=True, private=False); \
+          api.upload_folder(folder_path='.', repo_id=repo_id, repo_type='space', ignore_patterns=['.git', '.github', '.gitignore'])"
