@@ -25,16 +25,23 @@ RUN pnpm install --frozen-lockfile
 
 COPY . .
 RUN OPENCLAW_A2UI_SKIP_MISSING=1 pnpm build
-# Force pnpm for UI build (Bun may fail on ARM/Synology architectures)
+# Force pnpm for UI build
 ENV OPENCLAW_PREFER_PNPM=1
 RUN pnpm ui:install
 RUN pnpm ui:build
 
 ENV NODE_ENV=production
 
+# --- FIX 1: DATA PERMISSIONS ---
+# Your render.yaml sets OPENCLAW_STATE_DIR to /data/.openclaw.
+# Since we are switching to USER node, we must create this directory 
+# and give the 'node' user permission to write to it.
+RUN mkdir -p /data && chown -R node:node /data
+
 # Security hardening: Run as non-root user
-# The node:22-bookworm image includes a 'node' user (uid 1000)
-# This reduces the attack surface by preventing container escape via root privileges
 USER node
 
-CMD ["node", "dist/index.js"]
+# --- FIX 2: START THE GATEWAY ---
+# Use shell form (no brackets) so $PORT is expanded correctly.
+# This runs the specific 'gateway' command instead of just the help menu.
+CMD node dist/index.js gateway --port $PORT
