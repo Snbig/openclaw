@@ -1,69 +1,24 @@
-name: Sync with Hugging Face Hub
+name: Sync to Hugging Face Spaces
 
 on:
   push:
-    branches:
-      - main
+    branches: [main]
+  # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
 
 jobs:
-  build:
+  sync-to-hub:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository
+      - name: Checkout infrastructure
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
           lfs: true
 
-      - name: Sync with Hugging Face
+      - name: Push to hub
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
-          # 1. Enable the Rust-based transfer accelerator
-          HF_HUB_ENABLE_HF_TRANSFER: 1
         run: |
-          # 2. Install huggingface_hub with the [hf_transfer] extra
-          pip install "huggingface_hub[hf_transfer]"
-
-          # 3. Use the API (Cleaned up for readability)
-          python -c "
-          import os
-          from huggingface_hub import HfApi
-
-          api = HfApi(token=os.environ['HF_TOKEN'])
-          repo_id = 'jacksparrow2/Bot'
-
-          print(f'Ensuring repo {repo_id} exists...')
-          api.create_repo(
-              repo_id=repo_id, 
-              repo_type='space', 
-              space_sdk='gradio', 
-              exist_ok=True, 
-              private=False
-          )
-
-          print('Starting accelerated upload...')
-          api.upload_folder(
-              folder_path='.', 
-              repo_id=repo_id, 
-              repo_type='space', 
-              ignore_patterns=['.git', '.github', '.gitignore', '__pycache__']
-          )
-          print('Upload complete!')
-          "          api.create_repo(
-              repo_id=repo_id, 
-              repo_type='space', 
-              space_sdk='gradio', 
-              exist_ok=True, 
-              private=False
-          )
-
-          print('Starting upload...')
-          api.upload_folder(
-              folder_path='.', 
-              repo_id=repo_id, 
-              repo_type='space', 
-              ignore_patterns=['.git', '.github', '.gitignore', '__pycache__']
-          )
-          print('Upload success!')
-          "
+          # Replace 'your-username' and 'your-space-name'
+          git push --force https://USER:$HF_TOKEN@huggingface.co/spaces/jacksparrow2/Bot main
