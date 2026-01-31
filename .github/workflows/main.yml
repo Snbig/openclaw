@@ -3,22 +3,45 @@ name: Sync to Hugging Face Spaces
 on:
   push:
     branches: [main]
-  # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
 
 jobs:
   sync-to-hub:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout infrastructure
+      - name: Checkout repo
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          lfs: true
+          lfs: true # Ensures LFS files are pulled from GitHub
 
-      - name: Push to hub
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.9'
+
+      - name: Install huggingface_hub
+        run: pip install huggingface_hub
+
+      - name: Upload to Hub
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
-          # Replace 'your-username' and 'your-space-name'
-          git push --force https://USER:$HF_TOKEN@huggingface.co/spaces/jacksparrow2/Bot main
+          python -c "
+          from huggingface_hub import HfApi
+          import os
+
+          api = HfApi(token=os.environ['HF_TOKEN'])
+          
+          print('Starting upload to Hugging Face...')
+          api.upload_folder(
+              folder_path='.',
+              repo_id='jacksparrow2/Bot',
+              repo_type='space',
+              # This ensures the Space matches your GitHub repo exactly
+              delete_patterns='*', 
+              # Prevents syncing the .git folder itself
+              ignore_patterns=['.git/*']
+          )
+          print('Upload complete!')
+          "
