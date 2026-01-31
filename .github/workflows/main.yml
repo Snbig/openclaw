@@ -13,22 +13,23 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          lfs: true # Pulls all LFS files from GitHub
+          lfs: true
 
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.9'
+          python-version: '3.10'
 
-      - name: Install huggingface_hub
-        run: pip install -U huggingface_hub
+      - name: Install dependencies
+        run: |
+          pip install -U huggingface_hub hf_transfer
 
       - name: Upload to Hub
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
-          # Increase timeout to 10 minutes (600 seconds) 
-          # to allow the server to process large files
-          HF_HUB_HTTP_TIMEOUT: 600 
+          HF_HUB_ENABLE_HF_TRANSFER: "1"
+          # Set a very high global timeout for the HTTP client
+          HF_HUB_HTTP_TIMEOUT: "1000"
         run: |
           python -c "
           import os
@@ -36,13 +37,19 @@ jobs:
           
           api = HfApi(token=os.environ['HF_TOKEN'])
           
-          print('Starting upload of ALL files...')
+          print('Starting multi-commit upload (no exclusions)...')
+          
           api.upload_folder(
               folder_path='.',
               repo_id='jacksparrow2/Bot',
               repo_type='space',
-              delete_patterns='*',
-              ignore_patterns=['.git/*'] # Only exclude the git history folder
+              # This is the fix: It breaks the upload into smaller chunks
+              # so the server doesn't time out during the commit.
+              multi_commits=True,
+              multi_commits_verbose=True,
+              # Still need to ignore .git because it's a protected system folder
+              ignore_patterns=['.git/*']
           )
-          print('Upload complete!')
+          
+          print('Upload finished successfully!')
           "
