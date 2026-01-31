@@ -20,36 +20,21 @@ jobs:
         with:
           python-version: '3.10'
 
-      - name: Install dependencies
+      - name: Install Hugging Face CLI
         run: |
-          pip install -U huggingface_hub hf_transfer
+          pip install -U "huggingface_hub[cli]"
 
       - name: Upload to Hub
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
-          HF_HUB_ENABLE_HF_TRANSFER: "1"
-          # Set a very high global timeout for the HTTP client
+          # Huge timeout to allow the server to scan .pkl and .pcm files
           HF_HUB_HTTP_TIMEOUT: "1000"
         run: |
-          python -c "
-          import os
-          from huggingface_hub import HfApi
-          
-          api = HfApi(token=os.environ['HF_TOKEN'])
-          
-          print('Starting multi-commit upload (no exclusions)...')
-          
-          api.upload_folder(
-              folder_path='.',
-              repo_id='jacksparrow2/Bot',
-              repo_type='space',
-              # This is the fix: It breaks the upload into smaller chunks
-              # so the server doesn't time out during the commit.
-              multi_commits=True,
-              multi_commits_verbose=True,
-              # Still need to ignore .git because it's a protected system folder
-              ignore_patterns=['.git/*']
-          )
-          
-          print('Upload finished successfully!')
-          "
+          # Use the CLI to upload everything. 
+          # --delete="*" ensures a true sync (removes files deleted on GitHub)
+          # We only exclude the hidden .git folder
+          huggingface-cli upload jacksparrow2/Bot . . \
+            --repo-type=space \
+            --token=$HF_TOKEN \
+            --delete="*" \
+            --exclude=".git/*"
