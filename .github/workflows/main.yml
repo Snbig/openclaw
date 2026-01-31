@@ -22,18 +22,19 @@ jobs:
 
       - name: Install Hugging Face CLI
         run: |
-          pip install -U "huggingface_hub[cli]"
+          pip install -U "huggingface_hub[cli]" hf_transfer
 
       - name: Upload to Hub
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
-          # Huge timeout to allow the server to scan .pkl and .pcm files
-          HF_HUB_HTTP_TIMEOUT: "1000"
+          HF_HUB_ENABLE_HF_TRANSFER: "1" # Fast uploads
+          HF_HUB_HTTP_TIMEOUT: "1000"    # High timeout for .pkl scanning
         run: |
-          # Use the CLI to upload everything. 
-          # --delete="*" ensures a true sync (removes files deleted on GitHub)
-          # We only exclude the hidden .git folder
-          huggingface-cli upload jacksparrow2/Bot . . \
+          # Calling the CLI via 'python -m' to avoid "command not found"
+          python -m huggingface_hub.commands.huggingface_cli upload \
+            jacksparrow2/Bot \
+            . \
+            . \
             --repo-type=space \
             --token=$HF_TOKEN \
             --delete="*" \
