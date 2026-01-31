@@ -22,16 +22,16 @@ jobs:
 
       - name: Install Hugging Face CLI
         run: |
-          pip install -U "huggingface_hub[cli]" hf_transfer
+          pip install -U "huggingface_hub[cli]"
+          # This line adds the pip install directory to the PATH for the next steps
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
 
       - name: Upload to Hub
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
-          HF_HUB_ENABLE_HF_TRANSFER: "1" # Fast uploads
-          HF_HUB_HTTP_TIMEOUT: "1000"    # High timeout for .pkl scanning
+          HF_HUB_HTTP_TIMEOUT: "1000" # High timeout for server-side file scanning
         run: |
-          # Calling the CLI via 'python -m' to avoid "command not found"
-          python -m huggingface_hub.commands.huggingface_cli upload \
+          huggingface-cli upload \
             jacksparrow2/Bot \
             . \
             . \
