@@ -13,7 +13,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          lfs: true # Ensures LFS files are pulled from GitHub
+          lfs: true # Pulls all LFS files from GitHub
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -21,27 +21,28 @@ jobs:
           python-version: '3.9'
 
       - name: Install huggingface_hub
-        run: pip install huggingface_hub
+        run: pip install -U huggingface_hub
 
       - name: Upload to Hub
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          # Increase timeout to 10 minutes (600 seconds) 
+          # to allow the server to process large files
+          HF_HUB_HTTP_TIMEOUT: 600 
         run: |
           python -c "
-          from huggingface_hub import HfApi
           import os
-
+          from huggingface_hub import HfApi
+          
           api = HfApi(token=os.environ['HF_TOKEN'])
           
-          print('Starting upload to Hugging Face...')
+          print('Starting upload of ALL files...')
           api.upload_folder(
               folder_path='.',
               repo_id='jacksparrow2/Bot',
               repo_type='space',
-              # This ensures the Space matches your GitHub repo exactly
-              delete_patterns='*', 
-              # Prevents syncing the .git folder itself
-              ignore_patterns=['.git/*']
+              delete_patterns='*',
+              ignore_patterns=['.git/*'] # Only exclude the git history folder
           )
           print('Upload complete!')
           "
